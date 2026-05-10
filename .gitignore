@@ -1,4 +1,15 @@
+# FastApi
 backend/venv/
 *.pyc
 backend/__pycache__/
 .env
+
+# React
+node_modules/
+dist/
+
+# IDE
+.vscode/
+
+# OS
+.DS_Store
