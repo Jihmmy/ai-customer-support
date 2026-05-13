@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from backend.database import SessionLocal
-from backend.models.product import Product
-from backend.schemas.product_schema import ProductCreate, ProductResponse
+from app.database import SessionLocal
+from app.models.product import Product
+from app.schemas.product_schema import ProductCreate, ProductResponse
 
 # Création d'un routeur avec un tag pour la documentation automatique
 router = APIRouter(tags=["Produits"])

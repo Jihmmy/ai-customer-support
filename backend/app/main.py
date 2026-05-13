@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from backend.database import engine, Base
-from backend.routes.products import router as products_router
+from app.database import engine, Base
+from app.routes.products import router as products_router
 
 # === Création des tables au démarrage ===
 # Base.metadata.create_all(bind=engine)   # Déplacé dans le lifespan
@@ -39,14 +39,14 @@ app = FastAPI(
 # Permet aux applications frontend de communiquer avec l'API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],        # À restreindre en production (ex: ["https://monsite.com"])
+    allow_origins=["*"],        # À restreindre en production
     allow_credentials=True,
     allow_methods=["*"],        # Autorise toutes les méthodes HTTP
     allow_headers=["*"],        # Autorise tous les en-têtes
 )
 
 # === Inclusion des routeurs ===
-# Tous les endpoints de produits sont accessibles via /api/v1/products (défini dans le routeur)
+# Tous les endpoints de produits sont accessibles via /routes/products (défini dans le routeur)
 app.include_router(products_router)
 
 # === Endpoint racine ===
