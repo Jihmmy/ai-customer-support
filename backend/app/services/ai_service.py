@@ -1,58 +1,45 @@
-"""
-Service IA.
+import google.generativeai as genai
 
-Ce fichier gère :
-- connexion DeepSeek API
-- envoi prompts
-- récupération réponses IA
-"""
+from google.api_core.exceptions import GoogleAPIError, DeadlineExceeded
+from app.config.settings import GEMINI_API_KEY
 
-from openai import OpenAI
+import logging
 
-from app.config.settings import (
-    DEEPSEEK_API_KEY
-)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Initialisation client DeepSeek
-client = OpenAI(
-    api_key=DEEPSEEK_API_KEY,
-    base_url="https://api.deepseek.com"
-)
+genai.configure(api_key=GEMINI_API_KEY)
+
+model = genai.GenerativeModel("gemini-1.5-flash")
+
 
 def generate_ai_response(prompt: str) -> str:
     """
-    Envoie un prompt à DeepSeek
-    et retourne la réponse IA.
-
-    Args:
-        prompt (str): Prompt envoyé au modèle
-
-    Returns:
-        str: Réponse générée par l'IA
+    Génère réponse IA avec Gemini + gestion erreurs.
     """
 
-    response = client.chat.completions.create(
-        model="deepseek-chat",
+    try:
+        if not prompt.strip():
+            return "Prompt vide"
 
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "Tu es un assistant vendeur professionnel "
-                    "pour une boutique en ligne."
-                )
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
+        response = model.generate_content(prompt)
 
-        # Contrôle créativité
-        temperature=0.7,
+        if not response.text:
+            return "Réponse vide IA"
 
-        # Taille maximale réponse
-        max_tokens=300
-    )
+        return response.text
 
-    return response.choices[0].message.content
+
+    except DeadlineExceeded:
+        logger.error("Timeout Gemini API")
+        return "IA trop lente, réessayez."
+
+
+    except GoogleAPIError as e:
+        logger.error(f"Gemini API error: {e}")
+        return "Erreur API IA."
+
+
+    except Exception as e:
+        logger.error(f"Unknown error: {e}")
+        return "Erreur interne IA."
