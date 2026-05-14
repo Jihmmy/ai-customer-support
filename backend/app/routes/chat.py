@@ -1,29 +1,34 @@
-"""
-Routes API du chatbot IA.
-"""
-
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+# Import de la session SQLAlchemy
 from app.database import SessionLocal
+
+# Import du modèle Product
 from app.models.product import Product
 
-from app.schemas.chat_schema import (
-    ChatRequest,
-    ChatResponse
+# Import des schémas Pydantic
+from app.schemas.chat_schema import ChatRequest, ChatResponse
+
+# Import du service IA
+from app.services.ai_service import generate_ai_response
+
+
+# Création du router FastAPI
+router = APIRouter(
+    prefix="/chat",
+    tags=["AI Chat"]
 )
 
-from app.services.ai_service import (
-    generate_ai_response
-)
 
-# Création router FastAPI
-router = APIRouter()
-
+# =========================
+# DATABASE DEPENDENCY
+# =========================
 def get_db():
     """
-    Ouvre une session PostgreSQL
-    puis la ferme automatiquement.
+    Crée une session de base de données
+    puis la ferme automatiquement
+    après la requête.
     """
 
     db = SessionLocal()
@@ -35,62 +40,97 @@ def get_db():
         db.close()
 
 
+# =========================
+# CHAT ENDPOINT
+# =========================
 @router.post(
-    "/chat",
-    response_model=ChatResponse,
-    tags=["AI Chat"]
+    "/",
+    response_model=ChatResponse
 )
 def chat(
     request: ChatRequest,
     db: Session = Depends(get_db)
 ):
     """
-    Endpoint principal du chatbot IA.
+    Chatbot IA vendeur.
 
-    Processus :
-    1. Lire produits PostgreSQL
-    2. Construire contexte vendeur
-    3. Envoyer prompt à DeepSeek
-    4. Retourner réponse IA
+    Cette route :
+    - récupère les produits
+    - construit un contexte IA
+    - envoie le prompt au modèle IA
+    - retourne la réponse générée
     """
 
-    # Récupération produits
+    # -------------------------
+    # Validation du message
+    # -------------------------
+    if not request.message.strip():
+
+        raise HTTPException(
+            status_code=400,
+            detail="Message invalide"
+        )
+
+    # -------------------------
+    # Récupération des produits
+    # -------------------------
     products = db.query(Product).all()
 
-    # Construction contexte produits
-    products_context = ""
+    if not products:
 
-    for product in products:
+        raise HTTPException(
+            status_code=404,
+            detail="Aucun produit disponible"
+        )
 
-        products_context += f"""
-        Produit : {product.name}
-        Description : {product.description}
-        Prix : {product.price} Ariary
-        Stock : {product.stock}
+    # -------------------------
+    # Construction du contexte
+    # -------------------------
+    products_context = "\n".join([
+
+        f"""
+        Produit: {product.name}
+        Description: {product.description}
+        Prix: {product.price} Ar
+        Stock: {product.stock}
         """
 
-    # Prompt envoyé à l'IA
+        for product in products
+    ])
+
+    # -------------------------
+    # Création du prompt IA
+    # -------------------------
     prompt = f"""
-    Tu travailles comme assistant vendeur IA.
+    Tu es un assistant vendeur professionnel.
 
     Voici les produits disponibles :
 
     {products_context}
 
-    Instructions :
-    - Réponds en français
-    - Sois professionnel
-    - Réponds clairement
-    - Utilise les informations produits
-    - Ne crée pas de faux prix
-
-    Message client :
+    Question du client :
     {request.message}
+
+    Réponds de manière claire, professionnelle et utile.
     """
 
+    # -------------------------
     # Génération réponse IA
-    ai_response = generate_ai_response(prompt)
+    # -------------------------
+    try:
 
-    return {
-        "response": ai_response
-    }
+        ai_response = generate_ai_response(prompt)
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erreur IA : {str(e)}"
+        )
+
+    # -------------------------
+    # Retour de la réponse
+    # -------------------------
+    return ChatResponse(
+        response=ai_response
+    )
